@@ -26,15 +26,19 @@ Ensure you have the following installed:
 ```sh
 minikube start
 ```
+### 2️⃣ Start Minikube
 ```sh
 kubectl apply -f manifests/
 ```
+### 3️⃣ Check pods and svc created or not
 ```sh
 kubectl get pods
 ```
 ```sh
 kubectl get svc
 ```
+### 4️⃣ Get Minikube IP & Access App
+
 ```sh
 minikube ip
 ```
