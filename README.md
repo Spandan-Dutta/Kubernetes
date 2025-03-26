@@ -25,26 +25,17 @@ Ensure you have the following installed:
 ### 1️⃣ Start Minikube
 ```sh
 minikube start
+```
+```sh
 kubectl apply -f manifests/
+```
+```sh
 kubectl get pods
+```
+```sh
 kubectl get svc
+```
+```sh
 minikube ip
 ```
-
-
----
-
-### ✅ **6. Architecture Diagram**  
-Use **diagrams.net** or **Mermaid.js** to create a **visual representation** of your Kubernetes architecture.  
-
-**Example using Mermaid.js**  
-```md
-## 🏗️ Architecture Diagram
-```mermaid
-graph TD;
-    User -->|Access| Ingress;
-    Ingress -->|Routes Traffic| Service;
-    Service -->|Forwards to| Pod;
-    Pod -->|Reads/Writes| Database;
-
 
