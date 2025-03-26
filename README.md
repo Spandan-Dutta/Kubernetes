@@ -19,3 +19,9 @@ Ensure you have the following installed:
 - [Minikube](https://minikube.sigs.k8s.io/docs/start/) 🚀
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) 🛠️
 - [Docker](https://docs.docker.com/get-docker/) 🐳
+
+## 🚀 Installation & Deployment
+
+### 1️⃣ Start Minikube
+```sh
+minikube start
