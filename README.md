@@ -13,18 +13,9 @@ This repository contains the Kubernetes configurations for deploying a **Voting 
 
 The setup includes **Pods, Deployments, Services 🛠️
 
-## 📁 Project Structure
+## 🔧 Prerequisites
 
-├── manifests/
-│   ├── voting-app-deployment.yaml
-│   ├── voting-app-service.yaml
-│   ├── redis-deployment.yaml
-│   ├── redis-service.yaml
-│   ├── postgres-deployment.yaml
-│   ├── postgres-service.yaml
-│   ├── ingress.yaml
-│   ├── configmap.yaml
-│   └── secrets.yaml
-├── README.md
-├── .gitignore
-└── LICENSE
+Ensure you have the following installed:
+- [Minikube](https://minikube.sigs.k8s.io/docs/start/) 🚀
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) 🛠️
+- [Docker](https://docs.docker.com/get-docker/) 🐳
