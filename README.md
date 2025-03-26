@@ -6,8 +6,8 @@
 
 
 This repository contains the Kubernetes configurations for deploying a **Voting Application** on a Minikube or cloud-based cluster. The application consists of:
-- ✅ **Frontend:** Voting UI
-- ✅ **Backend:** Vote Processor
+- ✅ **Frontend:** Voting UI (Python), Result UI (NodeJS)
+- ✅ **Backend:** Vote Processor (.NET Application)
 - ✅ **Database:** Redis & PostgreSQL
 - ✅ **Orchestration:** Kubernetes
 
