@@ -25,14 +25,11 @@ Ensure you have the following installed:
 ### 1️⃣ Start Minikube
 ```sh
 minikube start
-
 kubectl apply -f manifests/
-
 kubectl get pods
-
 kubectl get svc
-
 minikube ip
+```
 
 Open in browser: http://<minikube-ip>:30004
 
