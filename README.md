@@ -31,5 +31,20 @@ kubectl get svc
 minikube ip
 ```
 
-Open in browser: http://<minikube-ip>:30004
+
+---
+
+### ✅ **6. Architecture Diagram**  
+Use **diagrams.net** or **Mermaid.js** to create a **visual representation** of your Kubernetes architecture.  
+
+**Example using Mermaid.js**  
+```md
+## 🏗️ Architecture Diagram
+```mermaid
+graph TD;
+    User -->|Access| Ingress;
+    Ingress -->|Routes Traffic| Service;
+    Service -->|Forwards to| Pod;
+    Pod -->|Reads/Writes| Database;
+
 
