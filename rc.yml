@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: nginx-rc
+  labels:
+    env: demo
+    tier: frontend
+spec:
+  template:
+    metadata:
+      name: nginx-pod-yaml
+      labels:
+        env: demo
+        tier: frontend
+    spec: 
+      containers:
+        - name: nginx-container
+          image: nginx
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+      restartPolicy: Always
+  replicas: 3

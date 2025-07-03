@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: clusterip-service
+  labels:
+    app: nodeport-app
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: nodeport-app
+    tier: frontend
+  ports:
+    - port: 80
+      targetPort: 80

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: myapp
+  labels:
+    env: stag
+    tier: backend
+spec:
+  containers:
+    - name: myapp-container
+      image: busybox:1.28
+      env: 
+        - name: MYAPP_ENV
+          value: "staging"
+      command: ['sh' , '-c' , 'echo the app is running && sleep 3600']
+      ports:
+        - containerPort: 80
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+  restartPolicy: Always
+
+  # Adding an init container to wait for a service to be available
+  # This init container will wait until the service 'myservice' is available in the cluster
+  # before starting the main application container.
+  # The init container uses 'nslookup' to check for the service's DNS entry.
+  initContainers:
+    - name: init-service
+      image: busybox:1.28
+      command: ['sh' , '-c']
+      args: ['until nslookup myservice.default.svc.cluster.local; do echo waiting for myservice service in your cluster; sleep 2; done']   
