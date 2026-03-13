@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: myapp-daemonset
+  labels:
+    env: stag
+    tier: backend
+spec:
+  template:
+    spec:
+      name: nginx
+      ports:
+        - containerPort: 80
+      selector:
+        matchLabels:
+          app: nginx
