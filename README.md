@@ -324,17 +324,8 @@ spec:
 # Add a change-cause annotation so rollout history is meaningful
 kubectl annotate deployment/nginx-deployment kubernetes.io/change-cause="Updated nginx to 1.9.1"
 
-# Now history shows:
-# REVISION  CHANGE-CAUSE
-# 1         <none>
-# 2         Updated nginx to 1.9.1
-```
-
----
 
 #### Validating Manifest Files:
-
-> **Note:** `kubectl validate` and `kubectl --validate` are **not valid commands**. The correct approach is to use `--dry-run` flag with `kubectl apply` or `kubectl create`.
 
 ---
 
