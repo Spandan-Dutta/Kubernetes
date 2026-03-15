@@ -1,5 +1,12 @@
 ### Kubernetes Architecture:
 
+In the manifest (YAML or JSON file) for the Kubernetes object you want to create, you'll need to set values for the following fields:
+
+* apiVersion: Which version of the Kubernetes API you're using to create this object.
+* kind: What kind of object you want to create (e.g., Pod, Service, Deployment).
+* metadata: Data that helps uniquely identify the object, including a **name** string, **UID**, and optional **namespace** string.
+* spec: What state you desire for the object. 
+
 #### Control Plane Components:
 
 - **kube-apiserver**: The entry point for all REST API requests.
@@ -321,5 +328,127 @@ kubectl annotate deployment/nginx-deployment kubernetes.io/change-cause="Updated
 # REVISION  CHANGE-CAUSE
 # 1         <none>
 # 2         Updated nginx to 1.9.1
+```
+
+---
+
+#### Validating Manifest Files:
+
+> **Note:** `kubectl validate` and `kubectl --validate` are **not valid commands**. The correct approach is to use `--dry-run` flag with `kubectl apply` or `kubectl create`.
+
+---
+
+**Method 1: Client-side dry run** *(no cluster needed)*
+
+```bash
+kubectl apply --dry-run=client -f replicaset.yml
+kubectl apply --dry-run=client -f deployments.yml
+kubectl apply --dry-run=client -f service-nodeport.yml
+```
+
+- Runs **entirely on your machine** — never contacts the cluster.
+- kubectl parses the YAML and checks it against the **schema bundled with kubectl** itself.
+- ✅ Catches: wrong field names, wrong types, missing required fields, invalid `apiVersion`.
+- ❌ Misses: admission webhooks, resource quotas, cluster-specific policies.
+- 🔌 Works **offline** — great for local development and CI pipelines.
+
+**Method 2: Server-side dry run** *(requires live cluster access)*
+
+```bash
+kubectl apply --dry-run=server -f replicaset.yml
+kubectl apply --dry-run=server -f deployments.yml
+kubectl apply --dry-run=server -f service-nodeport.yml
+```
+
+- Sends the manifest to the **live API server** but with an instruction not to persist it.
+- The API server runs its **full admission pipeline**: schema validation + admission controllers + webhooks.
+- ✅ Catches everything client-side does **plus**: admission webhook rejections, resource quota violations, cluster policy violations, CRD-specific validation rules.
+- ❌ Requires a **running cluster** with proper credentials.
+- 🎯 Most accurate — closest to what `kubectl apply` would actually do.
+
+**Client-side vs Server-side — at a glance:**
+
+| | `--dry-run=client` | `--dry-run=server` |
+|---|---|---|
+| Contacts cluster? | ❌ No | ✅ Yes |
+| YAML syntax check | ✅ | ✅ |
+| Schema validation | ✅ (kubectl's bundled schema) | ✅ (live API server) |
+| Admission webhooks | ❌ | ✅ |
+| Resource quotas | ❌ | ✅ |
+| CRD-specific rules | ❌ | ✅ |
+| Works offline | ✅ | ❌ |
+| **Best for** | Quick local check | Pre-deploy safety check |
+
+---
+
+**Method 3: `kubectl diff`** *(compare manifest vs live cluster state)*
+
+```bash
+kubectl diff -f deployments.yml
+```
+
+- Shows a **git-style diff** of what *would* change if you applied the manifest.
+- Useful to review changes before applying — especially for image updates or config changes.
+- Requires a running cluster and the resource to already exist.
+
+---
+
+**Method 4: `kubectl explain`** *(understand what fields are valid)*
+
+```bash
+# Explain top-level fields of a resource
+kubectl explain deployment
+
+# Drill into nested fields
+kubectl explain deployment.spec
+kubectl explain deployment.spec.strategy
+kubectl explain pod.spec.containers
+
+# List all supported API resources
+kubectl api-resources
+
+# List all API versions
+kubectl api-versions
+```
+
+- Gives you the **official field definitions** directly from the API server.
+- Best way to understand what fields are valid, required, or optional — without leaving the terminal.
+
+---
+
+**What a validation error looks like:**
+
+If you have a wrong field, `--dry-run=client` will catch it immediately:
+```bash
+# Example: using a typo 'replica' instead of 'replicas'
+$ kubectl apply --dry-run=client -f bad-manifest.yml
+error: error validating "bad-manifest.yml": error validating data:
+  ValidationError(Deployment.spec): unknown field "replica"
+  in io.k8s.api.apps.v1.DeploymentSpec; ...
+```
+
+If you're missing the required `selector` field in a ReplicaSet:
+```bash
+error: error validating "replicaset.yml": error validating data:
+  ValidationError(ReplicaSet.spec): missing required field "selector"
+  in io.k8s.api.apps.v1.ReplicaSetSpec
+```
+
+---
+
+**Validation workflow — recommended approach:**
+
+```bash
+# Step 1: Quick offline check
+kubectl apply --dry-run=client -f your-manifest.yml
+
+# Step 2: Full server-side check before applying for real
+kubectl apply --dry-run=server -f your-manifest.yml
+
+# Step 3: (If resource already exists) Preview what will change
+kubectl diff -f your-manifest.yml
+
+# Step 4: Apply for real
+kubectl apply -f your-manifest.yml
 ```
 
