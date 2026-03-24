@@ -10,6 +10,6 @@ spec:
     app: nginx
     tier: frontend
   ports:
-  - port: 80
-    targetPort: 80
-    nodePort: 30080
+  - port: 80 # service port
+    targetPort: 80 # container port
+    nodePort: 30080 # node port
