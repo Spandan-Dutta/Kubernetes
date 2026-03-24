@@ -443,3 +443,265 @@ kubectl diff -f your-manifest.yml
 kubectl apply -f your-manifest.yml
 ```
 
+---
+
+#### Kubernetes Services:
+
+**Why do we need Services?**
+
+Pods in Kubernetes are **ephemeral** — they can be created, destroyed, or rescheduled at any time. Each Pod gets a **new IP address** when it restarts. This means you **cannot rely on Pod IPs** to communicate with your application.
+
+A **Service** provides:
+- A **stable IP address** (ClusterIP) and **DNS name** that doesn't change even when Pods behind it are replaced.
+- **Load balancing** across multiple Pod replicas.
+- **Service discovery** — other Pods can find your application by its Service name (e.g., `http://nginx-clusterip-svc`).
+- A way to **expose** your application either internally or externally.
+
+**How does a Service find Pods?**
+
+Services use **label selectors** to discover and group Pods. Any Pod matching the selector's labels becomes a backend (called an **Endpoint**) for that Service.
+
+```
+Service (selector: app=nginx, tier=frontend)
+    ↓ matches labels
+    ├── Pod-1 (labels: app=nginx, tier=frontend) ✅
+    ├── Pod-2 (labels: app=nginx, tier=frontend) ✅
+    └── Pod-3 (labels: app=redis, tier=backend) ❌ no match
+```
+
+When you send traffic to the Service, **kube-proxy** (running on each Node) routes it to one of the matching Pods using **iptables** or **IPVS** rules.
+
+---
+
+**Understanding Ports in a Service:**
+
+This is one of the most confusing parts for beginners. There are **3 different ports** involved:
+
+| Port Name | Where it lives | Purpose |
+|---|---|---|
+| `port` | On the **Service** itself | The port the Service listens on inside the cluster. Other Pods use this to connect. |
+| `targetPort` | On the **Pod/Container** | The port your application is actually listening on inside the container. The Service forwards traffic here. |
+| `nodePort` | On the **Node** (host machine) | An external-facing port (range: 30000–32767) opened on every Node. Only used with `NodePort` and `LoadBalancer` types. |
+
+**Traffic flow:**
+```
+External Request → nodePort (30080) on Node
+    → port (80) on Service
+    → targetPort (80) on Pod Container
+    → Your application (nginx)
+```
+
+---
+
+**Service Types — There are 4 types:**
+
+---
+
+##### 1. ClusterIP (default):
+
+Exposes the Service on an **internal cluster IP only**. The Service is **only reachable from within the cluster** — not from the outside.
+
+**Use case:** Internal communication between microservices (e.g., backend → database).
+
+**Example Manifest** (`service-clusterip.yml`):
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-clusterip-svc
+  labels:
+    env: demo
+spec:
+  # type: ClusterIP (this is the default, so you can omit it)
+  selector:
+    app: nginx
+    tier: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+```
+
+> **Note:** `type: ClusterIP` is the default, so if you omit the `type` field entirely, you get a ClusterIP service.
+
+**How to access a ClusterIP Service:**
+```bash
+# Only from within the cluster — e.g., exec into a Pod:
+kubectl exec -it <pod-name> -- curl http://nginx-clusterip-svc
+
+# Or use kubectl port-forward to access from your machine:
+kubectl port-forward svc/nginx-clusterip-svc 8080:80
+# Then open http://localhost:8080
+```
+
+---
+
+##### 2. NodePort:
+
+Exposes the Service on a **static port** (the NodePort) on **every Node's IP**. Makes the app accessible from outside the cluster via `<NodeIP>:<NodePort>`.
+
+**Use case:** Quick external access in development or testing. Not recommended for production.
+
+**Example Manifest** (`service-nodeport.yml`):
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-nodeport-svc
+  labels:
+    env: demo
+spec:
+  type: NodePort
+  selector:
+    app: nginx
+    tier: frontend
+  ports:
+  - port: 80       # Service port (used within cluster)
+    targetPort: 80  # Container port (where nginx listens)
+    nodePort: 30080 # External port on every Node (range: 30000-32767)
+```
+
+**Traffic flow for NodePort:**
+```
+                  ┌──────────────────────────────────────┐
+curl localhost:30080                                      │
+       │                                                  │
+       ▼                                                  │
+  Node (port 30080)                                       │
+       │                                                  │
+       ▼                                                  │
+  Service nginx-nodeport-svc (ClusterIP, port 80)         │
+       │          │           │                           │
+       ▼          ▼           ▼                           │
+    Pod-1       Pod-2       Pod-3  (targetPort 80 each)   │
+                                                          │
+                  └──────────────────────────────────────┘
+```
+
+> **Note:** A NodePort service **also creates a ClusterIP** automatically. So it's accessible both internally (via ClusterIP:80) and externally (via NodeIP:30080).
+
+> **kind + NodePort:** For kind clusters, you need `extraPortMappings` in `kind-config/config.yml` to forward the NodePort from the Docker container to your localhost. Without this, `curl localhost:30080` won't work.
+
+---
+
+##### 3. LoadBalancer:
+
+Extends NodePort by provisioning an **external load balancer** from your cloud provider (AWS ELB, GCP Load Balancer, Azure LB). The LB gets a **public IP** and routes traffic to the NodePort.
+
+**Use case:** Exposing applications to the internet in **production** on cloud providers.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-lb-svc
+spec:
+  type: LoadBalancer
+  selector:
+    app: nginx
+    tier: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+```
+
+**Traffic flow:**
+```
+Internet → Cloud Load Balancer (public IP)
+    → NodePort on a Node
+    → ClusterIP
+    → Pod
+```
+
+> **Note:** `LoadBalancer` is a **superset** — it creates a ClusterIP + NodePort + an external LB. In local environments (like kind/minikube) without a cloud provider, the `EXTERNAL-IP` will stay in `<pending>` state.
+
+---
+
+##### 4. ExternalName:
+
+Maps the Service to a **DNS name** (CNAME record) instead of selecting Pods. No proxying happens — it simply returns the CNAME.
+
+**Use case:** Pointing to an external service like a database hosted outside the cluster.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-database
+spec:
+  type: ExternalName
+  externalName: db.example.com
+```
+
+When a Pod looks up `my-database`, it gets redirected to `db.example.com`. No ClusterIP, no port forwarding, just a DNS alias.
+
+---
+
+**Service Types — Comparison Table:**
+
+| Feature | ClusterIP | NodePort | LoadBalancer | ExternalName |
+|---|---|---|---|---|
+| Internal access | ✅ | ✅ | ✅ | ✅ (DNS only) |
+| External access | ❌ | ✅ (via NodeIP:port) | ✅ (via public IP) | ✅ (DNS redirect) |
+| Gets a ClusterIP | ✅ | ✅ | ✅ | ❌ |
+| Opens port on Nodes | ❌ | ✅ (30000-32767) | ✅ | ❌ |
+| Cloud LB provisioned | ❌ | ❌ | ✅ | ❌ |
+| Uses selectors | ✅ | ✅ | ✅ | ❌ |
+| **Best for** | Internal comms | Dev/test access | Production exposure | External DNS alias |
+
+---
+
+**Useful Commands:**
+
+```bash
+# Create a Service
+kubectl apply -f service-clusterip.yml
+kubectl apply -f service-nodeport.yml
+
+# List all Services
+kubectl get svc
+kubectl get services
+
+# Describe a Service (shows Endpoints, ports, selector)
+kubectl describe svc nginx-nodeport-svc
+
+# Check which Pods are backing a Service (Endpoints)
+kubectl get endpoints nginx-clusterip-svc
+
+# Access a ClusterIP service from your machine via port-forward
+kubectl port-forward svc/nginx-clusterip-svc 8080:80
+
+# Create a service imperatively (without YAML)
+kubectl expose deployment nginx-deployment --type=NodePort --port=80 --target-port=80 --name=nginx-exposed-svc
+
+# Delete a Service
+kubectl delete svc nginx-nodeport-svc
+kubectl delete -f service-nodeport.yml
+```
+
+---
+
+**Service Discovery — How Pods find Services:**
+
+Kubernetes provides **two mechanisms** for Pods to discover Services:
+
+**1. DNS (recommended):**
+```bash
+# From any Pod, you can reach a Service by name:
+curl http://nginx-clusterip-svc           # same namespace
+curl http://nginx-clusterip-svc.default   # namespace.svc
+curl http://nginx-clusterip-svc.default.svc.cluster.local  # FQDN
+```
+CoreDNS automatically creates DNS records for every Service.
+
+**2. Environment Variables:**
+When a Pod starts, Kubernetes injects environment variables for every Service that existed at that time:
+```bash
+NGINX_CLUSTERIP_SVC_SERVICE_HOST=10.96.57.228
+NGINX_CLUSTERIP_SVC_SERVICE_PORT=80
+```
+> ⚠️ Environment variables are only set at Pod **creation** time. Services created *after* the Pod won't be available via env vars. DNS is preferred.
+
+---
+
+> **Key Takeaway:** Use **ClusterIP** for internal Pod-to-Pod communication, **NodePort** for quick dev/test access, **LoadBalancer** for production internet exposure, and **ExternalName** when you need to point to an external DNS.
+
